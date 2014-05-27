@@ -1,0 +1,7 @@
+int f(int a){
+
+    real r = 0.4;
+    string s = "args";
+    int b = 8;
+    return b;
+}

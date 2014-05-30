@@ -2,7 +2,9 @@ package whilelang.testing.tests;
 
 import static org.junit.Assert.fail;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 
 import org.junit.*;
 
@@ -26,7 +28,8 @@ public class X86ValidTests extends TestHarness {
 			compileWithGcc(srcPath, name, name + ".s", RUNTIME_LIBRARY);
 
 			// Third, execute the compiled file
-			String output = runNative(srcPath, name);
+//			String output = runNative(srcPath, name);// fixme
+            String output = myRunNative(srcPath, name);
 			compare(output, outputPath + File.separatorChar + name + "."
 					+ outputExtension);
 		} catch (Exception ex) {
@@ -85,8 +88,52 @@ public class X86ValidTests extends TestHarness {
 			return null;
 		}
 	}
-	
-	@Test
+
+    // from forum //
+    public String myRunNative(String dir, String executable) {
+        try {
+            Process p = Runtime.getRuntime().exec(dir + File.separatorChar + executable);
+
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+
+            String input = "";
+            String error = "";
+
+            String temp = null;
+
+            while ((temp = stdInput.readLine()) != null) {
+                input += temp += "\n";
+            }
+
+            while ((temp = stdError.readLine()) != null) {
+                error += temp += "\n";
+            }
+
+            p.waitFor();
+
+            System.err.println("============================================================");
+            System.err.println(dir + File.separatorChar + executable);
+            System.err.println("============================================================");
+            System.err.println(error); // propagate anything from the error stream
+
+            return input;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            fail("Problem running native executable");
+            return null;
+        }
+    }
+
+
+    // added
+    @Test
+    public void _Print_Valid() {
+        runX86Test("_Print_Valid");
+    }
+
+
+    @Test
 	public void BoolAssign_Valid_1() {
 		runX86Test("BoolAssign_Valid_1");
 	}

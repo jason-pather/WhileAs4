@@ -285,7 +285,8 @@ public class X86FileWriter {
 
 		// Determine type of expression so as to determine appropriate print
 		// call.
-		Type type = statement.getExpr().attribute(Attribute.Type.class).type;
+//		Type type = statement.getExpr().attribute(Attribute.Type.class).type;// .attribute returns null
+        Type type = new Type.Strung();        // hack!
 				
 		String typeLabel = freshLabel();
 		addTypeConstant(type,typeLabel,data);
@@ -294,7 +295,7 @@ public class X86FileWriter {
 				typeLabel, HIP, HSI));
 
 		instructions
-				.add(new Instruction.Addr(Instruction.AddrOp.call, "print"));
+				.add(new Instruction.Addr(Instruction.AddrOp.call, "_print"));  // fixme
 	}
 
 	public void translate(Stmt.Return statement,
@@ -605,6 +606,29 @@ public class X86FileWriter {
 			X86File.Code code, X86File.Data data) {
 		
 		List<Instruction> instructions = code.instructions;
+        Object value = e.getValue();
+
+        String label = freshLabel();
+//        addTypeConstant(getWhileTypeFromJava(value), label = freshLabel(), data);  // already done after this method
+
+        // check if target is free?
+        if (freeRegisters.contains(target))
+        {
+            instructions.add(new Instruction.AddrRegReg(Instruction.AddrRegRegOp.lea,
+                    label, HIP, target));
+
+            // add Constant to data (Word is 2 bytes)
+            if (value instanceof String)
+                data.constants.add(new Constant.String(label, (String) e.getValue()));
+            else if (value instanceof Long || value instanceof Double)    // 8 bytes
+                data.constants.add(new Constant.Quad(label, (Long) value));
+            else if (value instanceof Integer)   // 4 bytes
+                data.constants.add(new Constant.Long(label, (Long) value));
+
+        }
+
+
+
 		// TODO: implement me!
 	}
 
@@ -1091,12 +1115,12 @@ public class X86FileWriter {
 	/**
 	 * Determine the offset of a given field in a given type.
 	 * 
-	 * @param e
-	 * @param target
-	 * @param freeRegisters
-	 * @param localVariables
-	 * @param code
-	 * @param data
+//	 * @param e
+//	 * @param target
+//	 * @param freeRegisters
+//	 * @param localVariables
+//	 * @param code
+//	 * @param data
 	 */
 	public int determineFieldOffset(Type.Record type, String field) {
 		
@@ -1163,7 +1187,7 @@ public class X86FileWriter {
 			addNaturalWordConstant(INT_TAG, label, data);
 		} else if (type instanceof Type.Real) {
 			addNaturalWordConstant(REAL_TAG, label, data);
-		} else if (type instanceof Type.Strung) {
+        } else if (type instanceof Type.Strung) {
 			addNaturalWordConstant(STRING_TAG, label, data);
 		} else if (type instanceof Type.Record) {
 			Type.Record r = (Type.Record) type;
@@ -1214,17 +1238,36 @@ public class X86FileWriter {
 	 * dependent, and simply calls the translated <code>main()</code> method
 	 * from the original while source file.
 	 * 
-	 * @param xf
+//	 * @param xf
 	 */
 	private void addMainLauncher(X86File.Code code) {
 		List<Instruction> instructions = code.instructions;
-		instructions.add(new Instruction.Label("main", 1, true));
+		instructions.add(new Instruction.Label("_main", 1, true)); // fixme
 		instructions.add(new Instruction.Reg(Instruction.RegOp.push, HBP));
 		instructions.add(new Instruction.Addr(Instruction.AddrOp.call,
 				"wl_main"));
 		instructions.add(new Instruction.Reg(Instruction.RegOp.pop, HBP));
 		instructions.add(new Instruction.Unit(Instruction.UnitOp.ret));
 	}
+
+    private Type getWhileTypeFromJava(Object o)
+    {
+        if (o instanceof String)
+            return new Type.Strung();
+        else if (o instanceof Integer)
+            return new Type.Int();
+        else if (o instanceof Boolean)
+            return new Type.Bool();
+        else if (o instanceof Character)
+            return new Type.Char();
+        else if (o instanceof Double || o instanceof Float)
+            return new Type.Real();
+        else throw new IllegalArgumentException("Could not find type of constant");
+
+
+
+
+    }
 
 	/**
 	 * Returns the head of a given registers family. For example, on
